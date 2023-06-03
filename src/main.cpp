@@ -227,7 +227,7 @@ void construitVoronoi(Application &app)
     
 }
 
-bool handleEvent(Application &app)
+bool handleEvent(Application &app,SDL_Renderer *renderer, const std::vector<Coords> &points)
 {
     /* Remplissez cette fonction pour gérer les inputs utilisateurs */
     SDL_Event e;
@@ -255,7 +255,12 @@ bool handleEvent(Application &app)
             else if (e.button.button == SDL_BUTTON_LEFT)
             {
                 app.focus.y = 0;
-                app.points.push_back(Coords{e.button.x, e.button.y});
+                bool point_deja_pose=false;
+                for (std::size_t i = 0; i < points.size(); i++)
+                {
+                    if(points[i].x==e.button.x && points[i].y==e.button.y)point_deja_pose=true;
+                }
+                if(not point_deja_pose) app.points.push_back(Coords{e.button.x, e.button.y});
                 /*if(app.points.size() > 2)
                 {
                     int n = app.points.size();
@@ -292,7 +297,7 @@ int main(int argc, char **argv)
     while (true)
     {
         // INPUTS
-        is_running = handleEvent(app);
+        is_running = handleEvent(app,renderer,app.points);
         if (!is_running)
             break;
 
