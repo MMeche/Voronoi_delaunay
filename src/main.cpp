@@ -28,7 +28,6 @@ struct Triangle
 {
     Coords p1, p2, p3;
     bool complet=false;
-    int r,g,b;
 };
 
 struct Application
@@ -38,6 +37,8 @@ struct Application
 
     std::vector<Coords> points;
     std::vector<Triangle> triangles;
+    std::vector<Coords> centres;
+
 };
 
 bool compareCoords(Coords point1, Coords point2)
@@ -47,11 +48,28 @@ bool compareCoords(Coords point1, Coords point2)
     return point1.x < point2.x;
 }
 
-void drawPoints(SDL_Renderer *renderer, const std::vector<Coords> &points)
+void drawPoints(SDL_Renderer *renderer,const Application &app)
 {
-    for (std::size_t i = 0; i < points.size(); i++)
+    for (std::size_t i = 0; i < app.points.size(); i++)
     {
-        filledCircleRGBA(renderer, points[i].x, points[i].y, 3, 240, 240, 23, SDL_ALPHA_OPAQUE);
+        filledCircleRGBA(renderer, app.points[i].x, app.points[i].y, 3, 240, 240, 23, SDL_ALPHA_OPAQUE);
+    }
+    //std::sort(app.centres.begin(), app.centres.end(), compareCoords);
+    for (std::size_t i = 0; i < app.centres.size(); i++)
+    {
+        filledCircleRGBA(renderer, app.centres[i].x, app.centres[i].y, 3, 240, 100, 100, SDL_ALPHA_OPAQUE);
+        if (i!=0)
+        lineRGBA(
+            renderer,
+            app.centres[i-1].x, app.centres[i-1].y,
+            app.centres[i].x, app.centres[i].y,
+            240, 240, 20, SDL_ALPHA_OPAQUE);
+        else 
+        lineRGBA(
+            renderer,
+            app.centres[-1].x, app.centres[-1].y,
+            app.centres[0].x, app.centres[0].y,
+            240, 240, 20, SDL_ALPHA_OPAQUE);
     }
 }
 
@@ -80,28 +98,6 @@ void drawTriangles(SDL_Renderer *renderer, const std::vector<Triangle> &triangle
             0, 240, 160, SDL_ALPHA_OPAQUE
         );
 
-        /*essayons de colorier ces triangles*/
-        float ix1=t.p1.x;
-        float ix2=t.p2.x;
-        float iy1=t.p1.y;
-        float iy2=t.p2.y;
-        int nb_lignes=30;
-        for(int i=0; i<nb_lignes; i++)
-        {
-            /*draw line*/
-            // lineRGBA(
-            // renderer,
-            // ix1, iy1,
-            // ix2, iy2,
-            // t.r, t.g, t.b, SDL_ALPHA_OPAQUE);
-
-            /*l'idée est de partir de p1 et p2 et de suivre pour chacun de ces points le segment p1-p3 (p2-p3 respectivement) et d'à chaque pas dessiner le segment p1-p2 ; ainsi on recouvre la surface entière du triangle*/
-            ix1+=(t.p3.x-t.p1.x)/nb_lignes;
-            iy1+=(t.p3.y-t.p1.y)/nb_lignes;
-            ix2+=(t.p3.x-t.p2.x)/nb_lignes;
-            iy2+=(t.p3.y-t.p2.y)/nb_lignes;
-        }
-
 
     }
 }
@@ -112,7 +108,7 @@ void draw(SDL_Renderer *renderer, const Application &app)
     int width, height;
     SDL_GetRendererOutputSize(renderer, &width, &height);
 
-    drawPoints(renderer, app.points);
+    drawPoints(renderer, app);
     drawTriangles(renderer, app.triangles);
 }
 
@@ -187,11 +183,20 @@ void construitVoronoi(Application &app)
 {
     std::sort(app.points.begin(), app.points.end(), compareCoords);
     app.triangles.clear();
+    app.centres.clear();
+    
 
     Coords p1{-1000,-1000};
     Coords p2{500,3000};
     Coords p3{1500,-1000};
-    app.triangles.push_back(Triangle{p1,p2,p3,false,rand()*255,rand()*255,rand()*255});
+    app.triangles.push_back(Triangle{p1,p2,p3,false});
+    float xc,yc,rsqr;
+    CircumCircle( (((p1.x+p2.x)/2)+p3.x),(((p1.y+p2.y)/2)+p3.y)/2,
+                p1.x,p1.y,
+                p2.x,p2.y,
+                p3.x,p3.y,
+                &xc,&yc,&rsqr);
+    app.centres.push_back(Coords{(int)xc,(int)yc});
 
     /*Pour chaque points placés*/
     for(std::size_t i = 0 ; i < app.points.size() ; i++)
@@ -218,6 +223,7 @@ void construitVoronoi(Application &app)
                 LS.push_back(Segment{T.p2,T.p3});
                 LS.push_back(Segment{T.p3,T.p1});
                 app.triangles.erase(app.triangles.begin()+j);
+                app.centres.erase(app.centres.begin()+j);
                 /*Et on enlève ledit triangle de la liste des triangles*/
                 j--; /* Si on supprime le triangle, on reste sur place dans la liste */
             }
@@ -247,7 +253,21 @@ void construitVoronoi(Application &app)
 
         for(std::size_t j = 0 ; j < LS.size() ; j++)
         {
-            app.triangles.push_back(Triangle{LS[j].p1,LS[j].p2,P,false,rand()*255,rand()*255,rand()*255});
+            app.triangles.push_back(Triangle{LS[j].p1,LS[j].p2,P,false});
+
+            /*Voronoi : on trouve les centres des cercles circonscrits et on les dessine*/
+            float xc=-1;
+            float yc=-1;
+            float rsqr=-1;
+
+            CircumCircle((((P.x+LS[j].p1.x)/2)+LS[j].p2.x),(((P.y+LS[j].p1.y)/2)+LS[j].p2.y)/2,/*pour trouver un point dans le cercle*/
+                LS[j].p1.x,LS[j].p1.y,
+                LS[j].p2.x,LS[j].p2.y,
+                P.x,P.y,
+                &xc,&yc,&rsqr);
+            app.centres.push_back(Coords{(int)xc,(int)yc});
+            
+            
         };
     };
     
@@ -276,6 +296,7 @@ bool handleEvent(Application &app,SDL_Renderer *renderer, const std::vector<Coor
                 app.focus.x = e.button.x;
                 app.focus.y = e.button.y;
                 app.points.clear();
+                app.centres.clear();
                 app.triangles.clear();
             }
             else if (e.button.button == SDL_BUTTON_LEFT)
