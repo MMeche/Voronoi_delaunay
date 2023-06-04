@@ -284,9 +284,16 @@ bool handleEvent(Application &app,SDL_Renderer *renderer, const std::vector<Coor
                 bool point_deja_pose=false;
                 for (std::size_t i = 0; i < points.size(); i++)
                 {
-                    if(points[i].x==e.button.x && points[i].y==e.button.y)point_deja_pose=true;
+                    if(points[i].x==e.button.x && points[i].y==e.button.y)
+                    {
+                        point_deja_pose=true;
+                    }
                 }
-                if(not point_deja_pose) app.points.push_back(Coords{e.button.x, e.button.y});
+                if(not point_deja_pose)
+                { 
+                    app.points.push_back(Coords{e.button.x, e.button.y});
+                    construitVoronoi(app);
+                }
                 /*if(app.points.size() > 2)
                 {
                     int n = app.points.size();
@@ -294,7 +301,7 @@ bool handleEvent(Application &app,SDL_Renderer *renderer, const std::vector<Coor
                 } Milestone 0*/
                 
 
-                construitVoronoi(app);
+                
             }
         }
     }
