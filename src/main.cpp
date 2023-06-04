@@ -6,6 +6,7 @@
 #include <queue>
 #include <algorithm>
 
+
 #define EPSILON 0.0001f
 
 struct Coords
@@ -27,6 +28,7 @@ struct Triangle
 {
     Coords p1, p2, p3;
     bool complet=false;
+    int r,g,b;
 };
 
 struct Application
@@ -77,6 +79,30 @@ void drawTriangles(SDL_Renderer *renderer, const std::vector<Triangle> &triangle
             t.p3.x, t.p3.y,
             0, 240, 160, SDL_ALPHA_OPAQUE
         );
+
+        /*essayons de colorier ces triangles*/
+        float ix1=t.p1.x;
+        float ix2=t.p2.x;
+        float iy1=t.p1.y;
+        float iy2=t.p2.y;
+        int nb_lignes=30;
+        for(int i=0; i<nb_lignes; i++)
+        {
+            /*draw line*/
+            // lineRGBA(
+            // renderer,
+            // ix1, iy1,
+            // ix2, iy2,
+            // t.r, t.g, t.b, SDL_ALPHA_OPAQUE);
+
+            /*l'idée est de partir de p1 et p2 et de suivre pour chacun de ces points le segment p1-p3 (p2-p3 respectivement) et d'à chaque pas dessiner le segment p1-p2 ; ainsi on recouvre la surface entière du triangle*/
+            ix1+=(t.p3.x-t.p1.x)/nb_lignes;
+            iy1+=(t.p3.y-t.p1.y)/nb_lignes;
+            ix2+=(t.p3.x-t.p2.x)/nb_lignes;
+            iy2+=(t.p3.y-t.p2.y)/nb_lignes;
+        }
+
+
     }
 }
 
@@ -165,15 +191,15 @@ void construitVoronoi(Application &app)
     Coords p1{-1000,-1000};
     Coords p2{500,3000};
     Coords p3{1500,-1000};
-    app.triangles.push_back(Triangle{p1,p2,p3});
+    app.triangles.push_back(Triangle{p1,p2,p3,false,rand()*255,rand()*255,rand()*255});
 
     /*Pour chaque points placés*/
     for(std::size_t i = 0 ; i < app.points.size() ; i++)
     {
         Coords P = app.points[i];
         std::vector<Segment> LS;
+
         /*Pour chaque triangle déjà créé*/
-        
         for(std::size_t j = 0 ; j < app.triangles.size() ; j++)
         {
             Triangle T = app.triangles[j];
@@ -221,7 +247,7 @@ void construitVoronoi(Application &app)
 
         for(std::size_t j = 0 ; j < LS.size() ; j++)
         {
-            app.triangles.push_back(Triangle{LS[j].p1,LS[j].p2,P});
+            app.triangles.push_back(Triangle{LS[j].p1,LS[j].p2,P,false,rand()*255,rand()*255,rand()*255});
         };
     };
     
