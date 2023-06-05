@@ -1,0 +1,50 @@
+
+                                vector :
+-fonctionnement : tableau à taille dynamique, explorable par itération, mémoire pré allouée donc a une mémoire par défaut ? Mémoire contigue.
+
+vector<int> vector1 = {1, 2, 3, 4, 5};
+  cout << "\nvector3 = ";
+
+  // ranged loop
+  for (int& i : vector1) {
+    cout << i << "  ";
+  }
+output : vector3 = 12  12  12  12  12 
+vector1.pushback(6) ; pour rajouter un élément à la fin 
+vector1.at(i) pour accéder au i ème élément ; 
+
+-avantages : chaque élément ne prend de palce que pour lui même , sécurisé
+-inconvénients : les éléments sont insérés à la fin du vecteur 
+-exemple d'utilisation :
+
+
+
+
+                                    deque :
+-fonctionnement : 
+deque<int> gquiz;
+gquiz.push_back(10);
+gquiz.push_front(20);
+gquiz.size() 
+gquiz.at(2) 
+gquiz.pop_front();
+
+-avantages : peut insérer au début et fin, insersion rapide, tableau dynamique, 
+-inconvénients :d'autres insertions risques d'invalider tout les pointeurs, références … n'a pas les fonctions de vecteur (capacity(), reserve()), stockage contingue pas guaranti
+-exemple d'utilisation :
+
+                                        map :
+-fonctionnement :  associe des clés à des mapped values , structure ordonnée avec des clés triées ( lors de l'itération les clés sont croissantes )
+map["one"] = 1; 
+map["three"] = 3; 
+while (it != map.end())
+  {
+    std::cout << "Key: " << it->first << ", Value: " << it->second << std::endl;
+    ++it;
+  }
+out put : Key: one, Value: 1
+	Key: three, Value: 3
+    
+-avantages : méthode find() rapide  (O(log n)) , map[key] est un indexeur rapide 
+-inconvénients : ne supporte pas les doublons , n'a pas la méthode splice() qu'à une liste de (x,y)
+-exemple d'utilisation :
