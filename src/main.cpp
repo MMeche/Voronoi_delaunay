@@ -42,6 +42,14 @@ struct SegmentVoronoi
     Coords c2;
 };
 
+struct Polygon
+{
+    std::vector<Triangle> triangles;
+    int r;
+    int g;
+    int b;
+};
+
 struct Application
 {
     int width, height;
@@ -51,6 +59,7 @@ struct Application
     std::vector<Triangle> triangles;
     std::vector<CentreVoronoi> centres;
     std::vector<SegmentVoronoi> segments;
+    std::vector<Polygon> polygons;
 
 };
 
@@ -71,9 +80,21 @@ void drawPoints(SDL_Renderer *renderer,const Application &app)
 
 void drawVoronoi(SDL_Renderer *renderer, const Application &app)
 {
+    for(std::size_t i = 0 ; i < app.polygons.size(); i++)
+    {
+        for(std::size_t j = 0 ; j < app.polygons[i].triangles.size() ; j++)
+        {
+            Triangle toDraw = app.polygons[i].triangles[j];
+            filledTrigonRGBA(renderer,
+            toDraw.p1.x,toDraw.p1.y,
+            toDraw.p2.x,toDraw.p2.y,
+            toDraw.p3.x,toDraw.p3.y,
+            app.polygons[i].r, app.polygons[i].g,app.polygons[i].r,SDL_ALPHA_OPAQUE);
+        }
+    }
     for(std::size_t i = 0 ; i < app.centres.size();i++)
     {
-        filledCircleRGBA(renderer, app.centres[i].c.x, app.centres[i].c.y,3,240,240,0,SDL_ALPHA_OPAQUE);
+        filledCircleRGBA(renderer, app.centres[i].c.x, app.centres[i].c.y,3,255,255,255,SDL_ALPHA_OPAQUE);
     };
     for(std::size_t i = 0; i < app.segments.size();i++)
     {
@@ -81,8 +102,9 @@ void drawVoronoi(SDL_Renderer *renderer, const Application &app)
             renderer,
             app.segments[i].c1.x, app.segments[i].c1.y,
             app.segments[i].c2.x, app.segments[i].c2.y,
-            240,240,0,SDL_ALPHA_OPAQUE);
+            255,0,0,SDL_ALPHA_OPAQUE);
     }
+    
 };
 
 void drawSegments(SDL_Renderer *renderer, const std::vector<Segment> &segments)
@@ -118,11 +140,10 @@ void draw(SDL_Renderer *renderer, const Application &app)
 {
     /* Remplissez cette fonction pour faire l'affichage du jeu */
     int width, height;
-    SDL_GetRendererOutputSize(renderer, &width, &height);
-
-    drawPoints(renderer, app);
-    /*drawTriangles(renderer, app.triangles);*/
+    SDL_GetRendererOutputSize(renderer, &width, &height);    
     drawVoronoi(renderer,app);
+    /*drawTriangles(renderer, app.triangles);*/
+    drawPoints(renderer, app);
 }
 
 /*
@@ -270,6 +291,7 @@ void construitVoronoi(Application &app)
 {
     app.centres.clear();
     app.segments.clear();
+    app.polygons.clear();
     for(std::size_t i = 0 ; i < app.triangles.size();i++)
     {
         float xc,yc,rsqr;
@@ -307,6 +329,34 @@ void construitVoronoi(Application &app)
             }
         }
     }
+
+    for(std::size_t i = 0 ; i < app.points.size();i++)
+    {
+        std::vector<Coords> centresProches;
+        Polygon new_polygon;
+            new_polygon.r = rand()%250;
+            new_polygon.g = rand()%250;
+            new_polygon.b = rand()%250;
+            new_polygon.triangles.clear();
+        for(std::size_t j = 0 ; j < app.centres.size() ; j++ )
+        {
+            if(app.centres[j].t.p1 == app.points[i] || app.centres[j].t.p2 == app.points[i] || app.centres[j].t.p3 == app.points[i])
+            {
+                centresProches.push_back(app.centres[j].c);
+            };
+        };
+        for(std::size_t j = 0 ; j < centresProches.size();j++)
+        {
+            new_polygon.triangles.push_back(Triangle{centresProches[j%centresProches.size()],app.points[i],centresProches[(j+1)%centresProches.size()]});
+            /*Jutsu défendu pour faire les polygons parce qu'ils skippent des triangles sans que je vois pourquoi*/
+            new_polygon.triangles.push_back(Triangle{centresProches[j%centresProches.size()],centresProches[(j+1)%centresProches.size()],centresProches[(j+2)%centresProches.size()]});
+            new_polygon.triangles.push_back(Triangle{centresProches[j%centresProches.size()],centresProches[(j+2)%centresProches.size()],centresProches[(j+4)%centresProches.size()]});
+            new_polygon.triangles.push_back(Triangle{centresProches[j%centresProches.size()],centresProches[(j+3)%centresProches.size()],centresProches[(j+6)%centresProches.size()]});
+            new_polygon.triangles.push_back(Triangle{app.points[i],centresProches[(j+2)%centresProches.size()],centresProches[(j+5)%centresProches.size()]});
+        }
+        app.polygons.push_back(new_polygon);
+    };
+
 };
 
 bool handleEvent(Application &app,SDL_Renderer *renderer, const std::vector<Coords> &points)
@@ -334,6 +384,9 @@ bool handleEvent(Application &app,SDL_Renderer *renderer, const std::vector<Coor
                 app.points.clear();
                 app.centres.clear();
                 app.triangles.clear();
+                app.centres.clear();
+                app.segments.clear();
+                app.polygons.clear();
             }
             else if (e.button.button == SDL_BUTTON_LEFT)
             {
@@ -387,6 +440,7 @@ int main(int argc, char **argv)
     /*  GAME LOOP  */
     while (true)
     {
+        srand(time(NULL));
         // INPUTS
         is_running = handleEvent(app,renderer,app.points);
         if (!is_running)
