@@ -30,6 +30,18 @@ struct Triangle
     bool complet=false;
 };
 
+struct CentreVoronoi
+{
+    Coords c;
+    Triangle t;
+};
+
+struct SegmentVoronoi
+{
+    Coords c1;
+    Coords c2;
+};
+
 struct Application
 {
     int width, height;
@@ -37,7 +49,8 @@ struct Application
 
     std::vector<Coords> points;
     std::vector<Triangle> triangles;
-    std::vector<Coords> centres;
+    std::vector<CentreVoronoi> centres;
+    std::vector<SegmentVoronoi> segments;
 
 };
 
@@ -54,24 +67,23 @@ void drawPoints(SDL_Renderer *renderer,const Application &app)
     {
         filledCircleRGBA(renderer, app.points[i].x, app.points[i].y, 3, 240, 240, 23, SDL_ALPHA_OPAQUE);
     }
-    //std::sort(app.centres.begin(), app.centres.end(), compareCoords);
-    for (std::size_t i = 0; i < app.centres.size(); i++)
-    {
-        filledCircleRGBA(renderer, app.centres[i].x, app.centres[i].y, 3, 240, 100, 100, SDL_ALPHA_OPAQUE);
-        if (i!=0)
-        lineRGBA(
-            renderer,
-            app.centres[i-1].x, app.centres[i-1].y,
-            app.centres[i].x, app.centres[i].y,
-            240, 240, 20, SDL_ALPHA_OPAQUE);
-        else 
-        lineRGBA(
-            renderer,
-            app.centres[-1].x, app.centres[-1].y,
-            app.centres[0].x, app.centres[0].y,
-            240, 240, 20, SDL_ALPHA_OPAQUE);
-    }
 }
+
+void drawVoronoi(SDL_Renderer *renderer, const Application &app)
+{
+    for(std::size_t i = 0 ; i < app.centres.size();i++)
+    {
+        filledCircleRGBA(renderer, app.centres[i].c.x, app.centres[i].c.y,3,240,240,0,SDL_ALPHA_OPAQUE);
+    };
+    for(std::size_t i = 0; i < app.segments.size();i++)
+    {
+        lineRGBA(
+            renderer,
+            app.segments[i].c1.x, app.segments[i].c1.y,
+            app.segments[i].c2.x, app.segments[i].c2.y,
+            240,240,0,SDL_ALPHA_OPAQUE);
+    }
+};
 
 void drawSegments(SDL_Renderer *renderer, const std::vector<Segment> &segments)
 {
@@ -109,7 +121,8 @@ void draw(SDL_Renderer *renderer, const Application &app)
     SDL_GetRendererOutputSize(renderer, &width, &height);
 
     drawPoints(renderer, app);
-    drawTriangles(renderer, app.triangles);
+    /*drawTriangles(renderer, app.triangles);*/
+    drawVoronoi(renderer,app);
 }
 
 /*
@@ -179,24 +192,18 @@ bool CircumCircle(
     return ((drsqr - *rsqr) <= EPSILON ? true : false);
 }
 
-void construitVoronoi(Application &app)
+void construitDelaunay(Application &app)
 {
     std::sort(app.points.begin(), app.points.end(), compareCoords);
     app.triangles.clear();
-    app.centres.clear();
+    
     
 
     Coords p1{-1000,-1000};
     Coords p2{500,3000};
     Coords p3{1500,-1000};
     app.triangles.push_back(Triangle{p1,p2,p3,false});
-    float xc,yc,rsqr;
-    CircumCircle( (((p1.x+p2.x)/2)+p3.x),(((p1.y+p2.y)/2)+p3.y)/2,
-                p1.x,p1.y,
-                p2.x,p2.y,
-                p3.x,p3.y,
-                &xc,&yc,&rsqr);
-    app.centres.push_back(Coords{(int)xc,(int)yc});
+    
 
     /*Pour chaque points placés*/
     for(std::size_t i = 0 ; i < app.points.size() ; i++)
@@ -223,7 +230,7 @@ void construitVoronoi(Application &app)
                 LS.push_back(Segment{T.p2,T.p3});
                 LS.push_back(Segment{T.p3,T.p1});
                 app.triangles.erase(app.triangles.begin()+j);
-                app.centres.erase(app.centres.begin()+j);
+                /*app.centres.erase(app.centres.begin()+j);*/
                 /*Et on enlève ledit triangle de la liste des triangles*/
                 j--; /* Si on supprime le triangle, on reste sur place dans la liste */
             }
@@ -253,25 +260,54 @@ void construitVoronoi(Application &app)
 
         for(std::size_t j = 0 ; j < LS.size() ; j++)
         {
-            app.triangles.push_back(Triangle{LS[j].p1,LS[j].p2,P,false});
-
-            /*Voronoi : on trouve les centres des cercles circonscrits et on les dessine*/
-            float xc=-1;
-            float yc=-1;
-            float rsqr=-1;
-
-            CircumCircle((((P.x+LS[j].p1.x)/2)+LS[j].p2.x),(((P.y+LS[j].p1.y)/2)+LS[j].p2.y)/2,/*pour trouver un point dans le cercle*/
-                LS[j].p1.x,LS[j].p1.y,
-                LS[j].p2.x,LS[j].p2.y,
-                P.x,P.y,
-                &xc,&yc,&rsqr);
-            app.centres.push_back(Coords{(int)xc,(int)yc});
-            
-            
+            app.triangles.push_back(Triangle{LS[j].p1,LS[j].p2,P});            
         };
     };
     
 }
+
+void construitVoronoi(Application &app)
+{
+    app.centres.clear();
+    app.segments.clear();
+    for(std::size_t i = 0 ; i < app.triangles.size();i++)
+    {
+        float xc,yc,rsqr;
+        CircumCircle(app.triangles[i].p1.x,app.triangles[i].p1.y,
+                    app.triangles[i].p1.x,app.triangles[i].p1.y,
+                    app.triangles[i].p2.x,app.triangles[i].p2.y,
+                    app.triangles[i].p3.x,app.triangles[i].p3.y,
+                    &xc,&yc,&rsqr);
+        CentreVoronoi new_centre;
+        new_centre.c.x = xc;
+        new_centre.c.y = yc;
+        new_centre.t = app.triangles[i];
+        app.centres.push_back(new_centre);
+    }
+    for(std::size_t i = 0 ; i < app.centres.size() ; i++)
+    {
+        for(std::size_t j = 0 ; j < app.centres.size() ; j++)
+        {
+            Triangle triangle1 = app.centres[i].t;
+            Triangle triangle2 = app.centres[j].t; 
+            if(j!=i && 
+            ((triangle1.p1 == triangle2.p1)&&(triangle1.p2 == triangle2.p2)||(triangle1.p1 == triangle2.p2)&&(triangle1.p2 == triangle2.p1))
+            ||((triangle1.p1 == triangle2.p2)&&(triangle1.p2 == triangle2.p3)||(triangle1.p1 == triangle2.p3)&&(triangle1.p2 == triangle2.p2))
+            ||((triangle1.p1 == triangle2.p3)&&(triangle1.p2 == triangle2.p1)||(triangle1.p1 == triangle2.p1)&&(triangle1.p2 == triangle2.p3))
+            
+            ||((triangle1.p2 == triangle2.p2)&&(triangle1.p3 == triangle2.p3)||(triangle1.p2 == triangle2.p3)&&(triangle1.p3 == triangle2.p2))
+            ||((triangle1.p2 == triangle2.p2)&&(triangle1.p3 == triangle2.p3)||(triangle1.p2 == triangle2.p3)&&(triangle1.p3 == triangle2.p2))
+            ||((triangle1.p2 == triangle2.p3)&&(triangle1.p3 == triangle2.p1)||(triangle1.p2 == triangle2.p1)&&(triangle1.p3 == triangle2.p3))
+            
+            ||((triangle1.p3 == triangle2.p2)&&(triangle1.p1 == triangle2.p3)||(triangle1.p3 == triangle2.p3)&&(triangle1.p1 == triangle2.p2))
+            ||((triangle1.p3 == triangle2.p2)&&(triangle1.p1 == triangle2.p3)||(triangle1.p3 == triangle2.p3)&&(triangle1.p1 == triangle2.p2))
+            ||((triangle1.p3 == triangle2.p3)&&(triangle1.p1 == triangle2.p1)||(triangle1.p3 == triangle2.p1)&&(triangle1.p1 == triangle2.p3)))
+            {
+                app.segments.push_back(SegmentVoronoi{app.centres[i].c,app.centres[j].c});
+            }
+        }
+    }
+};
 
 bool handleEvent(Application &app,SDL_Renderer *renderer, const std::vector<Coords> &points)
 {
@@ -313,6 +349,7 @@ bool handleEvent(Application &app,SDL_Renderer *renderer, const std::vector<Coor
                 if(not point_deja_pose)
                 { 
                     app.points.push_back(Coords{e.button.x, e.button.y});
+                    construitDelaunay(app);
                     construitVoronoi(app);
                 }
                 /*if(app.points.size() > 2)
